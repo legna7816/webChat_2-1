@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Application</title>
+    <link href="style.css" type="text/css" rel="stylesheet">
+</head>
+<body>
+    <h1 id="room-name">Web Chat</h1>
+    <div id="messages"></div>
+    <div id="input-container">
+        <input type="text" id="input" placeholder="Type your message here...">
+        <button id="emoji" class="emoji-button">😀</button>
+        <button id="send">Send</button>
+    </div>
+    <label class="switch">
+        <input type="checkbox" id="dark-mode-toggle">
+        <span class="slider round"></span>
+    </label>
+    <script>
+        let messagesDiv = document.getElementById('messages');
+        let input = document.getElementById('input');
+        let sendButton = document.getElementById('send');
+        let emojiButton = document.getElementById('emoji');
+        let darkModeToggle = document.getElementById('dark-mode-toggle');
+        let roomNameElement = document.getElementById('room-name');
+        let currentUser = sessionStorage.getItem('username');
+        let currentRoom = new URLSearchParams(window.location.search).get('room');
+
+        // 추가된 부분: 사용자가 스크롤을 직접 했는지 여부를 저장하는 변수
+        let isUserScrolled = false;
+
+        // 추가된 부분: 스크롤 이벤트 리스너
+        messagesDiv.addEventListener('scroll', () => {
+            if (messagesDiv.scrollTop + messagesDiv.clientHeight < messagesDiv.scrollHeight) {
+                isUserScrolled = true;
+            } else {
+                isUserScrolled = false;
+            }
+        });
+
+        if (!currentUser) {
+            alert('No username found. Redirecting to set username.');
+            window.location.href = 'Set%20Name.html';
+        }
+
+        if (currentRoom) {
+            roomNameElement.textContent = currentRoom;
+        } else {
+            alert('Invalid room. Redirecting to room setting page.');
+            window.location.href = 'rooms.html';
+        }
+
+        // 변경된 부분: appendMessage 함수에 shouldScroll 매개변수 추가
+        function appendMessage(username, message, isSent, messageTime, shouldScroll = false) {
+            let messageContainer = document.createElement('div');
+            messageContainer.setAttribute('class', 'message-container');
+            if (isSent) {
+                messageContainer.classList.add('sent');
+            } else {
+                messageContainer.classList.add('received');
+            }
+
+            let usernameDiv = document.createElement('div');
+            usernameDiv.textContent = username;
+            usernameDiv.setAttribute('class', 'username');
+
+            let messageDiv = document.createElement('div');
+            messageDiv.textContent = message;
+            messageDiv.setAttribute('class', 'message');
+
+            let timeDiv = document.createElement('div');
+            timeDiv.textContent = messageTime;
+            timeDiv.setAttribute('class', 'time');
+
+            messageContainer.appendChild(usernameDiv);
+            messageContainer.appendChild(messageDiv);
+            messageContainer.appendChild(timeDiv);
+            messagesDiv.appendChild(messageContainer);
+
+            // 추가한 부분: shouldScroll 매개변수를 사용하여 자동 스크롤 제어
+            if (shouldScroll || !isUserScrolled) {
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+        }
+
+        function formatTime(date) {
+            return date.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function sendMessage() {
+            let message = input.value;
+            if (message && currentUser && currentRoom) {
+                let messageTime = new Date();
+                // 추가한 부분: shouldScroll을 true로 설정하여 사용자가 메시지를 보낼 때 자동 스크롤 활성화
+                appendMessage(currentUser, message, true, formatTime(messageTime), true);
+
+                let xhr = new XMLHttpRequest();
+                xhr.open('POST', '/send', true);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4 && xhr.status !== 200) {
+                        console.error('Error sending message:', xhr.statusText);
+                    }
+                };
+                let requestBody = JSON.stringify({
+                    message: message,
+                    username: currentUser,
+                    timestamp: messageTime.toISOString(),
+                    room: currentRoom
+                });
+                xhr.send(requestBody);
+                input.value = '';
+                input.focus();
+            } else if (!currentUser) {
+                alert('Please enter your username.');
+            } else if (!currentRoom) {
+                alert('Invalid room.');
+            }
+        }
+
+        sendButton.addEventListener('click', sendMessage);
+
+        function handleKeyDown(event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        input.addEventListener('keydown', handleKeyDown);
+
+        function fetchMessages() {
+            var xhr = new XMLHttpRequest();
+            xhr.open('GET', '/messages?room=' + encodeURIComponent(currentRoom), true);
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        let data = JSON.parse(xhr.responseText);
+                        messagesDiv.innerHTML = '';
+                        for (let i = 0; i < data.length; i++) {
+                            let message = data[i];
+                            let isSent = message.username === currentUser;
+                            let messageTime = new Date(message.timestamp);
+                            appendMessage(message.username, message.message, isSent, formatTime(messageTime));
+                        }
+                    } else {
+                        console.error('Error fetching messages:', xhr.status);
+                    }
+                }
+            };
+            xhr.send();
+        }
+
+        setInterval(fetchMessages, 1000);
+
+        fetchMessages();
+
+        let emojis = ['😀', '😂', '😍', '😎', '😭', '😡', '👍', '🙏', '🎉', '💔'];
+
+        emojiButton.addEventListener('click', function () {
+            let emojiPicker = document.createElement('div');
+            emojiPicker.setAttribute('id', 'emoji-picker');
+
+            for (let i = 0; i < emojis.length; i++) {
+                let emojiSpan = document.createElement('span');
+                emojiSpan.textContent = emojis[i];
+                emojiSpan.addEventListener('click', function () {
+                    input.value += emojis[i];
+                    document.body.removeChild(emojiPicker);
+                });
+                emojiPicker.appendChild(emojiSpan);
+            }
+
+            document.body.appendChild(emojiPicker);
+        });
+
+        document.addEventListener('click', function (event) {
+            let emojiPicker = document.getElementById('emoji-picker');
+            if (emojiPicker && !emojiButton.contains(event.target) && !emojiPicker.contains(event.target)) {
+                document.body.removeChild(emojiPicker);
+            }
+        });
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            if (document.body.classList.contains('dark-mode')) {
+                localStorage.setItem('darkMode', 'enabled');
+            } else {
+                localStorage.removeItem('darkMode');
+            }
+        }
+
+        darkModeToggle.addEventListener('change', toggleDarkMode);
+
+        if (localStorage.getItem('darkMode') === 'enabled') {
+            document.body.classList.add('dark-mode');
+            darkModeToggle.checked = true;
+        }
+    </script>
+</body>
+</html>

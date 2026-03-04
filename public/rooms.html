@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="roomstyle.css" type="text/css" rel="stylesheet">
+    <title>Chat Rooms</title>
+</head>
+<body>
+    <div class="container">
+        <h1>Chat Rooms</h1>
+        <div class="input-group">
+            <input type="text" id="roomNameInput" placeholder="Type your chatroom name...">
+            <button id="submit">Create Chat Room</button>
+        </div>
+        <ul id="chatRoomList"></ul>
+        <br>
+        <button id="logout">Logout</button>
+    </div>
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            let currentUser = sessionStorage.getItem('username');
+            if (!currentUser) {
+                alert('No username found. Redirecting to login.');
+                window.location.href = 'login.html';
+            } else {
+                loadChatRooms();
+            }
+        });
+
+        document.getElementById("submit").addEventListener("click", function () {
+            var roomName = document.getElementById("roomNameInput").value.trim();
+            var chatRooms = JSON.parse(localStorage.getItem("chatRooms")) || [];
+
+            if (roomName) {
+                if (chatRooms.includes(roomName)) {
+                    alert("This chat room name already exists. Please choose a different name.");
+                } else {
+                    createChatRoom(roomName, true);
+                    document.getElementById("roomNameInput").value = '';
+                }
+            } else {
+                alert("Please enter a chat room name.");
+            }
+        });
+
+        document.getElementById("roomNameInput").addEventListener("keypress", function (event) {
+            if (event.key === "Enter") {
+                document.getElementById("submit").click();
+            }
+        });
+
+        function createChatRoom(roomName, saveToLocalStorage) {
+            var chatRoomList = document.getElementById("chatRoomList");
+            var newChatRoom = document.createElement("li");
+            var link = document.createElement("a");
+            let currentUser = sessionStorage.getItem('username');
+            link.href = "chat.html?room=" + encodeURIComponent(roomName) + "&user=" + encodeURIComponent(currentUser);
+            link.textContent = roomName;
+
+            var deleteButton = document.createElement("button");
+            deleteButton.textContent = "Delete";
+            deleteButton.addEventListener("click", function () {
+                deleteChatRoom(roomName, newChatRoom);
+            });
+
+            newChatRoom.appendChild(link);
+            newChatRoom.appendChild(deleteButton);
+            chatRoomList.appendChild(newChatRoom);
+
+            if (saveToLocalStorage) {
+                saveChatRoomToLocalStorage(roomName);
+            }
+        }
+
+        function saveChatRoomToLocalStorage(roomName) {
+            var chatRooms = JSON.parse(localStorage.getItem("chatRooms")) || [];
+            if (!chatRooms.includes(roomName)) {
+                chatRooms.push(roomName);
+                localStorage.setItem("chatRooms", JSON.stringify(chatRooms));
+            }
+        }
+
+        function loadChatRooms() {
+            let chatRooms = JSON.parse(localStorage.getItem("chatRooms")) || [];
+            chatRooms.forEach(function (roomName) {
+                createChatRoom(roomName, false);
+            });
+        }
+
+        function deleteChatRoom(roomName, chatRoomElement) {
+            fetch('/delete-room', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ roomName: roomName }),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log(data);
+                let chatRooms = JSON.parse(localStorage.getItem("chatRooms")) || [];
+                let updatedChatRooms = chatRooms.filter(name => name !== roomName);
+
+                localStorage.setItem("chatRooms", JSON.stringify(updatedChatRooms));
+                chatRoomElement.remove();
+            })
+            .catch(error => {
+                console.error('Error deleting chat room:', error);
+            });
+        }
+
+        document.getElementById("logout").addEventListener("click", function () {
+            logout();
+        });
+
+        function logout() {
+            sessionStorage.removeItem('username');
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

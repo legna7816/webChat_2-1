@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="Setstyle.css" type="text/css" rel="stylesheet">
+    <title>Sign Up</title>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Welcome to Web Chatting</h1>
+        <hr>
+        <h2>Sign Up</h2>
+        <input type="text" id="id" placeholder="ID"><br><br>
+        <input type="password" id="password" placeholder="Password"><br><br>
+        <input type="text" id="username" placeholder="Username"><br><br>
+        <button id="signup">Sign Up</button>
+    </div>
+
+    <script>
+        function handleSignUp() {
+            const id = document.getElementById('id').value.trim();
+            const password = document.getElementById('password').value.trim();
+            const username = document.getElementById('username').value.trim();
+
+            if (id && password && username) {
+                let xhr = new XMLHttpRequest();
+                xhr.open('POST', '/signup', true);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            alert('Sign up successful! Redirecting to login.');
+                            window.location.href = 'login.html'; // 로그인 페이지로 이동
+                        } else if (xhr.status === 400) {
+                            let response = JSON.parse(xhr.responseText);
+                            if (response.error === 'User ID already exists.') {
+                                alert('User ID already exists. Redirecting to login.');
+                                window.location.href = 'login.html'; // 이미 존재하는 사용자 ID인 경우 로그인 페이지로 이동
+                            } else if (response.error === 'Username already exists.') {
+                                alert('Username already exists. Please choose a different username.');
+                            } else {
+                                alert(response.error);
+                            }
+                        }
+                    }
+                };
+                xhr.send(JSON.stringify({ id, password, username }));
+            } else {
+                alert('Please fill in all fields.');
+            }
+        }
+
+        document.getElementById('signup').addEventListener('click', handleSignUp);
+
+        document.addEventListener('keyup', function (event) {
+            if (event.key === 'Enter') {
+                handleSignUp();
+            }
+        });
+    </script>
+</body>
+
+</html>

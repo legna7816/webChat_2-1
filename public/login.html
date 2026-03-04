@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="Setstyle.css" type="text/css" rel="stylesheet">
+    <title>Login</title>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to Web Chatting</h1>
+        <hr>
+        <h2>Login</h2>
+        <input type="text" id="id" placeholder="ID"><br><br>
+        <input type="password" id="password" placeholder="Password"><br><br>
+        <button id="login">Login</button><br>
+        <p>Don't have an account? <a href="signup.html">Sign Up here</a></p>
+    </div>
+    <script>
+        function handleLogin() {
+            const id = document.getElementById('id').value.trim();
+            const password = document.getElementById('password').value.trim();
+
+            if (id && password) {
+                let xhr = new XMLHttpRequest();
+                xhr.open('POST', '/login', true);
+                xhr.setRequestHeader('Content-Type', 'application/json');
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status === 200) {
+                            let response = JSON.parse(xhr.responseText);
+                            sessionStorage.setItem('username', response.username);
+                            window.location.href = 'rooms.html';
+                        } else {
+                            let response = JSON.parse(xhr.responseText);
+                            alert(response.error);
+                        }
+                    }
+                };
+                xhr.send(JSON.stringify({ id, password }));
+            } else {
+                alert('Please enter your ID and password.');
+            }
+        }
+
+        document.getElementById('login').addEventListener('click', handleLogin);
+
+        document.addEventListener('keyup', function (event) {
+            if (event.key === 'Enter') {
+                handleLogin();
+            }
+        });
+    </script>
+</body>
+</html>
